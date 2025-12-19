@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Clinical Diagnosis AI + Gemini</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --card: #020617;
+      --accent: #22c55e;
+      --accent-soft: rgba(34,197,94,0.1);
+      --border: #1e293b;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --danger: #f97373;
+      --danger-soft: rgba(248,113,113,0.12);
+      --radius: 12px;
+      --shadow: 0 18px 60px rgba(15,23,42,0.55);
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+    }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #1f2937 0, #020617 55%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .app-shell {
+      width: 100%;
+      max-width: 1040px;
+      background: linear-gradient(135deg, #020617 0, #020617 40%, #030712 100%);
+      border-radius: 24px;
+      border: 1px solid rgba(148,163,184,0.15);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+    @media (max-width: 900px) {
+      .app-shell {
+        display: flex;
+        flex-direction: column;
+      }
+    }
+    .left-pane,
+    .right-pane {
+      padding: 24px 28px;
+    }
+    .left-pane {
+      border-right: 1px solid rgba(15,23,42,0.9);
+      background: radial-gradient(circle at 0 0, #111827 0, #020617 55%);
+    }
+    .right-pane {
+      background: radial-gradient(circle at 100% 0, #111827 0, #020617 55%);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #4ade80 0, #16a34a 40%, #052e16 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #022c22;
+      font-weight: 700;
+      font-size: 16px;
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.35),
+                  0 0 24px rgba(34,197,94,0.55);
+    }
+    .title-text h1 {
+      font-size: 1.1rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #e5e7eb;
+    }
+    .title-text span {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .chip-version {
+      font-size: 0.68rem;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(15,23,42,0.85);
+      border: 1px solid rgba(148,163,184,0.3);
+      color: var(--muted);
+    }
+
+    .chat-box {
+      height: 260px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(30,64,175,0.75);
+      background:
+        radial-gradient(circle at 0 0, rgba(56,189,248,0.07) 0, transparent 50%),
+        radial-gradient(circle at 100% 100%, rgba(45,212,191,0.05) 0, transparent 50%),
+        rgba(15,23,42,0.9);
+      padding: 14px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chat-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .message {
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      max-width: 92%;
+    }
+    .message.user {
+      margin-left: auto;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #022c22;
+    }
+    .message.bot {
+      background: rgba(15,23,42,0.96);
+      border: 1px solid rgba(148,163,184,0.35);
+      color: #e5e7eb;
+    }
+    .message strong {
+      font-weight: 600;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .chat-input-row input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(51,65,85,0.95);
+      background: rgba(15,23,42,0.95);
+      color: var(--text);
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .chat-input-row input::placeholder {
+      color: #6b7280;
+    }
+    .btn-primary {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #022c22;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 12px 35px rgba(34,197,94,0.4);
+    }
+    .btn-primary:hover {
+      filter: brightness(1.08);
+    }
+    .btn-primary:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 18px rgba(34,197,94,0.35);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-icon {
+      font-size: 1rem;
+    }
+
+    .section-label {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+    }
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .upload-card {
+      border-radius: var(--radius);
+      border: 1px dashed rgba(55,65,81,0.9);
+      background: rgba(15,23,42,0.85);
+      padding: 10px 11px;
+      font-size: 0.78rem;
+      color: #e5e7eb;
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-card h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .upload-card small {
+      font-size: 0.72rem;
+      color: #6b7280;
+    }
+    .upload-card input {
+      margin-top: 8px;
+      width: 100%;
+      font-size: 0.72rem;
+      color: #e5e7eb;
+    }
+    .badge-soft {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 0.62rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+    .panel-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .diagnosis-card {
+      border-radius: 16px;
+      border: 1px solid rgba(55,65,81,0.95);
+      background:
+        radial-gradient(circle at 0 0, rgba(34,197,94,0.07) 0, transparent 50%),
+        rgba(15,23,42,0.96);
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 180px;
+    }
+    .diagnosis-pill {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.12);
+      color: #4ade80;
+      align-self: flex-start;
+      border: 1px solid rgba(34,197,94,0.55);
+    }
+    .diagnosis-main {
+      font-size: 0.82rem;
+      color: #e5e7eb;
+      line-height: 1.5;
+    }
+    .diagnosis-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .tag {
+      font-size: 0.7rem;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      color: #a5b4fc;
+      border: 1px solid rgba(79,70,229,0.5);
+    }
+    .section-divider {
+      margin: 14px 0 8px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0,
+        rgba(51,65,85,0.95) 35%,
+        rgba(51,65,85,0.95) 75%,
+        transparent 100%
+      );
+    }
+
+    .steps-list {
+      list-style: none;
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .steps-list li::before {
+      content: "• ";
+      color: #4ade80;
+    }
+
+    .disclaimer {
+      margin-top: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(248,113,113,0.6);
+      background:
+        radial-gradient(circle at 100% 0, rgba(248,113,113,0.16) 0, transparent 50%),
+        rgba(15,23,42,0.96);
+      padding: 10px 11px 9px;
+      font-size: 0.72rem;
+      color: #fecaca;
+      line-height: 1.4;
+      position: relative;
+      overflow: hidden;
+    }
+    .disclaimer-title {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-weight: 600;
+      font-size: 0.7rem;
+      margin-bottom: 4px;
+      color: #fecaca;
+    }
+    .disclaimer strong {
+      color: #fee2e2;
+    }
+    .badge-ai {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      font-size: 0.64rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.98);
+      border: 1px solid rgba(248,250,252,0.1);
+      color: #f97373;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(34,197,94,0.3);
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <section class="left-pane">
+      <header class="header">
+        <div class="title-wrap">
+          <div class="pill">Dx</div>
+          <div class="title-text">
+            <h1>Clinical AI + Gemini</h1>
+            <span>AI-POWERED DIAGNOSTIC MOCKUP</span>
+          </div>
+        </div>
+        <div class="chip-version">Demo • Gemini API via proxy</div>
+      </header>
+
+      <div class="chat-box" id="chatBox">
+        <div class="chat-scroll" id="chatScroll">
+          <div class="message bot">
+            <strong>Gemini Assistant:</strong> Descrivi sintomi, allega un'immagine o un file. 
+            Questa è una <em>simulazione educativa</em>, non sostituisce un medico.
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input
+            id="symptomInput"
+            type="text"
+            placeholder="Es.: febbre da 3 giorni, tosse secca, mal di gola..."
+          />
+          <button class="btn-primary" id="sendBtn">
+            <span class="btn-icon">➤</span>
+            Analizza
+          </button>
+        </div>
+      </div>
+
+      <div class="section-label">Allegati clinici</div>
+      <div class="upload-grid">
+        <div class="upload-card">
+          <span class="badge-soft">TXT</span>
+          <h3>File di testo</h3>
+          <small>Carica referto in formato testo (es. .txt).</small>
+          <input type="file" id="fileInput" accept=".txt" />
+        </div>
+        <div class="upload-card">
+          <span class="badge-soft">IMG</span>
+          <h3>Immagine / foto</h3>
+          <small>Foto di referto, esame, lesione (JPG, PNG).</small>
+          <input type="file" id="imageInput" accept="image/*" />
+        </div>
+      </div>
+    </section>
+
+    <section class="right-pane">
+      <div class="panel-title">Output AI</div>
+      <div class="panel-sub">
+        Gemini analizza testo e immagini per generare <strong>ipotesi non cliniche</strong>.
+      </div>
+
+      <article class="diagnosis-card">
+        <div class="diagnosis-pill">AI-Diagnosis</div>
+        <div id="diagnosisMain" class="diagnosis-main">
+          Nessun input analizzato. Descrivi sintomi o carica un'immagine, poi premi <strong>Analizza</strong>.
+        </div>
+        <div class="diagnosis-tags" id="diagnosisTags">
+          <span class="tag">Educational only</span>
+          <span class="tag">Non CE-marked</span>
+          <span class="tag">Gemini powered</span>
+        </div>
+      </article>
+
+      <div class="section-divider"></div>
+
+      <div class="panel-title">Prossimi passi</div>
+      <ul class="steps-list" id="stepsList">
+        <li>Consulta sempre un medico o il 118/112 in caso di urgenza.</li>
+        <li>Usa questo strumento solo per studio, simulazione o brainstorming.</li>
+        <li>Non prendere decisioni cliniche basate su questo output.</li>
+      </ul>
+
+      <div class="section-divider"></div>
+
+      <section class="disclaimer">
+        <div class="badge-ai">Gemini AI + EdTech</div>
+        <div class="disclaimer-title">Avvertenza medica</div>
+        <p>
+          Questa webapp è un <strong>prototipo educativo</strong> e non fornisce
+          consigli medici, diagnosi o trattamenti reali.[web:22][web:29]
+        </p>
+        <p>
+          I contenuti generati da Gemini sono solo a scopo informativo e non sostituiscono
+          il giudizio di un medico abilitato.[web:22][web:29]
+        </p>
+        <p>
+          Non usare per decisioni cliniche reali o emergenze; rivolgiti sempre a un professionista sanitario qualificato.[web:22][web:29]
+        </p>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    const symptomInput = document.getElementById("symptomInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const chatScroll = document.getElementById("chatScroll");
+    const diagnosisMain = document.getElementById("diagnosisMain");
+    const diagnosisTags = document.getElementById("diagnosisTags");
+    const fileInput = document.getElementById("fileInput");
+    const imageInput = document.getElementById("imageInput");
+
+    let currentImageBase64 = null;
+    let currentImageMime = null;
+
+    function appendMessage(text, role = "bot") {
+      const div = document.createElement("div");
+      div.className = "message " + (role === "user" ? "user" : "bot");
+      div.innerHTML =
+        role === "user"
+          ? "<strong>Tu:</strong> " + escapeHtml(text)
+          : "<strong>Gemini:</strong> " + text;
+      chatScroll.appendChild(div);
+      chatScroll.scrollTop = chatScroll.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="spinner"></span> Analizzando...';
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span class="btn-icon">➤</span> Analizza';
+      }
+    }
+
+    // *** QUI: chiamata al tuo backend, NON più direttamente a Gemini ***
+    async function callGeminiAPI(prompt, imageBase64 = null, imageMime = null) {
+      try {
+        const resp = await fetch("http://localhost:3000/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, imageBase64, imageMime }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          console.error("Errore proxy:", err);
+          alert("Errore dal server /api/gemini: " + (err.error || resp.status));
+          return null;
+        }
+
+        const data = await resp.json();
+        return data.text;
+      } catch (e) {
+        console.error(e);
+        alert("Impossibile contattare il server locale /api/gemini.");
+        return null;
+      }
+    }
+
+    async function handleSend() {
+      const text = symptomInput.value.trim();
+      if (!text && !currentImageBase64) {
+        alert("Scrivi sintomi o carica un'immagine prima di analizzare.");
+        return;
+      }
+
+      let userMessage = text || "(analisi immagine)";
+      appendMessage(userMessage, "user");
+      symptomInput.value = "";
+      setLoading(true);
+
+      const prompt = text || "Descrivi cosa vedi in questa immagine medica e fornisci possibili ipotesi generiche (solo educative).";
+
+      const aiResponse = await callGeminiAPI(prompt, currentImageBase64, currentImageMime);
+      setLoading(false);
+
+      if (aiResponse) {
+        appendMessage(aiResponse, "bot");
+        diagnosisMain.innerHTML = aiResponse.replace(/\n/g, "<br>");
+        updateTags(text);
+      }
+    }
+
+    function updateTags(text) {
+      diagnosisTags.innerHTML = "";
+      const tags = new Set(["Educational only", "Gemini powered"]);
+
+      const t = (text || "").toLowerCase();
+      if (/urgente|emergenza|dolore toracico|fiato corto/.test(t)) {
+        tags.add("Urgenza → Chiama 118");
+      }
+      if (/febbre/.test(t)) {
+        tags.add("Febbre");
+      }
+      if (currentImageBase64) {
+        tags.add("Analisi immagine");
+      }
+
+      for (const tag of tags) {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = tag;
+        diagnosisTags.appendChild(span);
+      }
+    }
+
+    sendBtn.addEventListener("click", handleSend);
+    symptomInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleSend();
+    });
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (file) {
+        const text = await file.text();
+        symptomInput.value = text.substring(0, 500);
+        appendMessage(
+          `File caricato: <strong>${escapeHtml(file.name)}</strong>. Testo inserito nel campo sintomi.`,
+          "bot"
+        );
+      }
+    });
+
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files[0];
+      if (file) {
+        currentImageMime = file.type;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target.result.split(",")[1];
+          currentImageBase64 = base64;
+          appendMessage(
+            `Immagine caricata: <strong>${escapeHtml(file.name)}</strong>. Premi Analizza per l'analisi AI.`,
+            "bot"
+          );
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  </script>
+</body>
+</html>
