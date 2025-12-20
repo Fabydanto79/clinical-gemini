@@ -521,7 +521,7 @@
     // *** QUI: chiamata al tuo backend, NON più direttamente a Gemini ***
     async function callGeminiAPI(prompt, imageBase64 = null, imageMime = null) {
       try {
-        const resp = await fetch("http://localhost:3000/api/gemini", {
+        const resp = await fetch("https://clinical-gemini-1.onrender.com/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt, imageBase64, imageMime }),
@@ -626,3 +626,4 @@
   </script>
 </body>
 </html>
+
